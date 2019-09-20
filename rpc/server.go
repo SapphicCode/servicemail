@@ -2,10 +2,10 @@ package rpc
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/rs/zerolog"
 	"github.com/streadway/amqp"
-	"github.com/vmihailenco/msgpack/v4"
 )
 
 // Server describes an RPC server, providing multiple RPC handlers.
@@ -47,7 +47,7 @@ func (s *Server) runHandler(queueName, handlerName string) {
 		var data interface{}
 
 		// receive and parse data
-		err := msgpack.Unmarshal(delivery.Body, &data)
+		err := json.Unmarshal(delivery.Body, &data)
 		if err != nil {
 			logger.Err(err).Msg("Error deserializing request body.")
 			continue
@@ -57,7 +57,7 @@ func (s *Server) runHandler(queueName, handlerName string) {
 		output := handler(data)
 
 		// serialize output
-		response, err := msgpack.Marshal(output)
+		response, err := json.Marshal(output)
 		if err != nil {
 			logger.Err(err).Msg("Error serializing response body.")
 			continue

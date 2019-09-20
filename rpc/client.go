@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 	"sync/atomic"
@@ -8,7 +9,6 @@ import (
 
 	"github.com/rs/zerolog"
 	"github.com/streadway/amqp"
-	"github.com/vmihailenco/msgpack/v4"
 )
 
 // Client describes an RPC client with the ability to call remote RPC servers.
@@ -101,7 +101,7 @@ func (c *Client) consumer(queueName string) {
 		var data interface{}
 
 		// decode response
-		err := msgpack.Unmarshal(delivery.Body, &data)
+		err := json.Unmarshal(delivery.Body, &data)
 		if err != nil {
 			logger.Err(err).Str("correlation_id", delivery.CorrelationId).Msg("Error decoding response body.")
 			continue
@@ -132,7 +132,7 @@ func (c *Client) Call(callName string, arguments interface{}, timeout time.Durat
 	defer delete(c.callers, correlationID) // prevent a memory leak
 
 	// encode our request
-	encodedArgs, err := msgpack.Marshal(arguments)
+	encodedArgs, err := json.Marshal(arguments)
 	if err != nil {
 		return nil, err
 	}

@@ -20,13 +20,14 @@ type Router struct {
 
 // New initializes the Router struct. It should only be called once.
 func (r *Router) New() error {
-	// create the connectionm
+	// create the connection
 	conn, err := amqp.Dial(r.MQURI)
 	if err != nil {
-		_ = conn.Close()
+		// _ = conn.Close()
 		return err
 	}
 	r.conn = conn
+	r.Logger.Debug().Msg("Connection established")
 
 	// create the channel
 	channel, err := conn.Channel()
@@ -35,6 +36,14 @@ func (r *Router) New() error {
 		return err
 	}
 	r.channel = channel
+	r.Logger.Debug().Msg("Channel established")
+
+	// set prefetching
+	err = r.channel.Qos(1, 0, false)
+	if err != nil {
+		return err
+	}
+	r.Logger.Debug().Msg("Prefetching set")
 
 	// register the exchange
 	err = channel.ExchangeDeclare(servicemail.Exchange, "topic", true, false, false, false, nil)
@@ -42,6 +51,7 @@ func (r *Router) New() error {
 		_ = conn.Close()
 		return err
 	}
+	r.Logger.Debug().Msg("Exchange registered")
 
 	// register the routing queue
 	queue, err := channel.QueueDeclare(servicemail.RoutingQueue, true, false, false, false, nil)
@@ -49,12 +59,14 @@ func (r *Router) New() error {
 		_ = conn.Close()
 		return err
 	}
+	r.Logger.Debug().Msg("Routing queue registered")
 	// bind the routing queue to the exchange
 	err = channel.QueueBind(queue.Name, servicemail.IngressRoutingKey+".*", servicemail.Exchange, false, nil)
 	if err != nil {
 		_ = conn.Close()
 		return err
 	}
+	r.Logger.Debug().Msg("Routing queue bound to exchange")
 
 	// create the RPC client
 	rpc := &rpc.Client{
@@ -65,6 +77,7 @@ func (r *Router) New() error {
 		ResponseRoutingKey: servicemail.RPCResponseRoutingKey,
 	}
 	r.rpc = rpc
+	r.Logger.Debug().Msg("RPC client created")
 
 	return nil
 }

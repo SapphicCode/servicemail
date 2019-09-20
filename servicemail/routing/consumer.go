@@ -1,20 +1,16 @@
 package routing
 
 import (
+	"encoding/json"
+
 	"github.com/Pandentia/servicemail/servicemail"
 	"github.com/streadway/amqp"
-	"github.com/vmihailenco/msgpack/v4"
 )
 
 // Run starts the router. It will (ideally) block indefinitely.
 func (r *Router) Run() error {
 	logger := r.Logger.With().Str("module", "consumer").Logger()
-
-	// enable prefetching
-	err := r.channel.Qos(1, 0, false)
-	if err != nil {
-		return err
-	}
+	logger.Info().Msg("Router started")
 
 	// begin consuming
 	deliveries, err := r.channel.Consume(servicemail.RoutingQueue, "", false, false, false, false, nil)
@@ -26,8 +22,10 @@ func (r *Router) Run() error {
 	for delivery := range deliveries {
 		var mail servicemail.Mail
 
+		logger.Debug().Msg("Delivery received from ingress")
+
 		// receive mail from ingress
-		if err := msgpack.Unmarshal(delivery.Body, &mail); err != nil {
+		if err := json.Unmarshal(delivery.Body, &mail); err != nil {
 			logger.Err(err).Bytes("data", delivery.Body).Msg("Error deserializing. Rejecting and continuing.")
 			delivery.Reject(false) // do *not* requeue, otherwise we'll just be stuck processing garbage
 			continue
@@ -47,7 +45,7 @@ func (r *Router) Run() error {
 		delivery.Ack(false) // acknowledge delivery, as we are past the point of no return
 		for _, envelope := range envelopes {
 			// encode envelope
-			data, err := msgpack.Marshal(envelope)
+			data, err := json.Marshal(envelope)
 			if err != nil {
 				logger.Err(err).Msg("Error serializing envelope.")
 				continue
