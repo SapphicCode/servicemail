@@ -1,3 +1,4 @@
+// Package servicemail is a meta-package containing structs for all servicemail components.
 package servicemail
 
 // Envelope represents a Mail object, with attached Servicemail metadata.

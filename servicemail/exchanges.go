@@ -1,5 +1,7 @@
 package servicemail
 
+import "time"
+
 // Exchange describes the RabbitMQ exchange name.
 const Exchange = "servicemail"
 
@@ -11,6 +13,16 @@ const (
 
 // Routing key prefixes.
 const (
-	IngressRoutingKey  = "ingress"
-	DeliveryRoutingKey = "delivery"
+	IngressRoutingKey     = "ingress"
+	DeliveryRoutingKey    = "delivery"
+	RPCRoutingKey         = "rpc"
+	RPCResponseRoutingKey = RPCRoutingKey + ".response"
 )
+
+// RPC call names.
+const (
+	RoutingCall = "routing"
+)
+
+// DefaultRPCTimeout represents the default RPC timeout.
+const DefaultRPCTimeout = 5 * time.Second
