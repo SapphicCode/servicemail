@@ -1,6 +1,8 @@
 package routing
 
 import (
+	"github.com/Pandentia/servicemail/rpc"
+
 	"github.com/Pandentia/servicemail/servicemail"
 	"github.com/rs/zerolog"
 	"github.com/streadway/amqp"
@@ -13,6 +15,7 @@ type Router struct {
 
 	conn    *amqp.Connection
 	channel *amqp.Channel
+	rpc     *rpc.Client
 }
 
 // New initializes the Router struct. It should only be called once.
@@ -52,6 +55,16 @@ func (r *Router) New() error {
 		_ = conn.Close()
 		return err
 	}
+
+	// create the RPC client
+	rpc := &rpc.Client{
+		Logger:             r.Logger,
+		Connection:         conn,
+		Exchange:           servicemail.Exchange,
+		RequestRoutingKey:  servicemail.RPCRoutingKey,
+		ResponseRoutingKey: servicemail.RPCResponseRoutingKey,
+	}
+	r.rpc = rpc
 
 	return nil
 }
