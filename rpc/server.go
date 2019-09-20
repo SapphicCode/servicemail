@@ -15,8 +15,8 @@ type Server struct {
 
 	// Connection configuration
 	Connection *amqp.Connection
-	Exchange   string // Exchange is expected to be a direct or topic exchange
-	RoutingKey string // routing key prefix for requests (e.g. "rpc")
+	Exchange   string // Exchange to register our request queues against. Expected to be topic or direct.
+	RoutingKey string // Routing key prefix for requests (e.g. "rpc").
 
 	channel *amqp.Channel
 }
@@ -70,7 +70,8 @@ func (s *Server) runHandler(queueName, handlerName string) {
 			true,             // mandatory
 			false,            // immediate
 			amqp.Publishing{
-				Body: response,
+				CorrelationId: delivery.CorrelationId,
+				Body:          response,
 			},
 		)
 		if err != nil {
