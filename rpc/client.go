@@ -126,6 +126,13 @@ func (c *Client) Call(callName string, arguments interface{}, timeout time.Durat
 	// get next ID in sequence for our CorrelationID
 	correlationID := strconv.FormatUint(atomic.AddUint64(&c.seq, 1), 10)
 
+	// get logger
+	logger := c.Logger.With().
+		Str("module", "rpc-call").
+		Str("call_name", callName).
+		Str("correlation_id", correlationID).Logger()
+	logger.Debug().Msg("Making RPC call.")
+
 	// create correlation channel
 	callback := make(chan interface{})
 	c.callers[correlationID] = callback

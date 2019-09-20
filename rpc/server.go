@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"context"
 	"encoding/json"
 
 	"github.com/rs/zerolog"
@@ -81,7 +80,7 @@ func (s *Server) runHandler(queueName, handlerName string) {
 }
 
 // Run runs the RPC server.
-func (s *Server) Run(ctx context.Context) error {
+func (s *Server) Run() error {
 	// init channel
 	channel, err := s.Connection.Channel()
 	if err != nil {
