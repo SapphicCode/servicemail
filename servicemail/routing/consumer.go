@@ -7,6 +7,14 @@ import (
 	"github.com/streadway/amqp"
 )
 
+func mustSerialize(v interface{}) []byte {
+	if data, err := json.Marshal(v); err != nil {
+		panic(err)
+	} else {
+		return data
+	}
+}
+
 // Run starts the router. It will (ideally) block indefinitely.
 func (r *Router) Run() error {
 	logger := r.Logger.With().Str("module", "consumer").Logger()
@@ -30,15 +38,25 @@ func (r *Router) Run() error {
 			delivery.Reject(false) // do *not* requeue, otherwise we'll just be stuck processing garbage
 			continue
 		}
+		logger.Debug().Interface("mail", mail).Msg("Message successfully deserialized.")
+
+		// I'm very aware we're deserializing and immediately re-serializing here. This is mostly for flexibility.
+		// A possible example for this use-case: Periodically fetching a banned domains list and rejecting mail here.
 
 		// management routing request
-		resp, err := r.rpc.Call(servicemail.RoutingCall, mail, servicemail.DefaultRPCTimeout)
+		serializedEnvelopes, err := r.rpc.Call(
+			servicemail.RoutingCall, mustSerialize(mail), servicemail.DefaultRPCTimeout)
 		if err != nil {
 			logger.Err(err).Msg("Error sending RPC request. Requeuing delivery.")
 			delivery.Reject(true)
 			continue
 		}
-		envelopes := resp.([]servicemail.Envelope)
+		envelopes := make([]servicemail.Envelope, 1) // the vast majority of the time it's going to be one or zero
+		if err := json.Unmarshal(serializedEnvelopes, &envelopes); err != nil {
+			logger.Err(err).Msg("Management returned garbage. Requeing delivery.")
+			delivery.Reject(true)
+			continue
+		}
 
 		// send envelopes to platform-specific delivery nodes
 		// beyond this point we can't requeue, so we error gracefully
@@ -55,14 +73,14 @@ func (r *Router) Run() error {
 			err = r.channel.Publish(
 				servicemail.Exchange,
 				servicemail.DeliveryRoutingKey+"."+envelope.Platform,
-				true,  // mandatory
+				false, // mandatory
 				false, // immediate
 				amqp.Publishing{
 					Body: data,
 				},
 			)
 			if err != nil {
-				logger.Err(err).Str("platform", envelope.Platform).Msg("Error publishing envelope.")
+				logger.Err(err).Interface("envelope", envelope).Msg("Error publishing envelope.")
 			}
 		}
 	}

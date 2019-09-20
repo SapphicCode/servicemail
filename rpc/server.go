@@ -1,15 +1,13 @@
 package rpc
 
 import (
-	"encoding/json"
-
 	"github.com/rs/zerolog"
 	"github.com/streadway/amqp"
 )
 
 // Server describes an RPC server, providing multiple RPC handlers.
 type Server struct {
-	Handlers map[string]func(interface{}) interface{}
+	Handlers map[string]func([]byte) []byte
 	Logger   zerolog.Logger
 
 	// Connection configuration
@@ -43,24 +41,8 @@ func (s *Server) runHandler(queueName, handlerName string) {
 
 	// process RPC requests
 	for delivery := range deliveryChannel {
-		var data interface{}
-
-		// receive and parse data
-		err := json.Unmarshal(delivery.Body, &data)
-		if err != nil {
-			logger.Err(err).Msg("Error deserializing request body.")
-			continue
-		}
-
 		// run handler
-		output := handler(data)
-
-		// serialize output
-		response, err := json.Marshal(output)
-		if err != nil {
-			logger.Err(err).Msg("Error serializing response body.")
-			continue
-		}
+		output := handler(delivery.Body)
 
 		// return output to sender
 		err = s.channel.Publish(
@@ -70,7 +52,7 @@ func (s *Server) runHandler(queueName, handlerName string) {
 			false,            // immediate
 			amqp.Publishing{
 				CorrelationId: delivery.CorrelationId,
-				Body:          response,
+				Body:          output,
 			},
 		)
 		if err != nil {

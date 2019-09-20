@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"encoding/json"
 	"errors"
 	"strconv"
 	"sync/atomic"
@@ -24,7 +23,7 @@ type Client struct {
 	channel *amqp.Channel
 	replyTo string // assembled routing key for requests
 	seq     uint64 // sequence number for request correlation
-	callers map[string]chan<- interface{}
+	callers map[string]chan<- []byte
 }
 
 func (c *Client) setup() error {
@@ -34,7 +33,7 @@ func (c *Client) setup() error {
 	}
 
 	// set up caller map
-	c.callers = make(map[string]chan<- interface{})
+	c.callers = make(map[string]chan<- []byte)
 
 	// set up channel
 	channel, err := c.Connection.Channel()
@@ -98,18 +97,9 @@ func (c *Client) consumer(queueName string) {
 
 	// process deliveries
 	for delivery := range deliveries {
-		var data interface{}
-
-		// decode response
-		err := json.Unmarshal(delivery.Body, &data)
-		if err != nil {
-			logger.Err(err).Str("correlation_id", delivery.CorrelationId).Msg("Error decoding response body.")
-			continue
-		}
-
-		// send decoded response out to caller
+		// send response out to caller
 		if callback, ok := c.callers[delivery.CorrelationId]; ok {
-			callback <- data
+			callback <- delivery.Body
 		} else {
 			logger.Error().Str("correlation_id", delivery.CorrelationId).Msg("Received response with no caller?")
 		}
@@ -117,7 +107,7 @@ func (c *Client) consumer(queueName string) {
 }
 
 // Call makes a RPC call, and initializes the client on first use.
-func (c *Client) Call(callName string, arguments interface{}, timeout time.Duration) (interface{}, error) {
+func (c *Client) Call(callName string, arguments []byte, timeout time.Duration) ([]byte, error) {
 	// init client
 	if err := c.setup(); err != nil {
 		return nil, err
@@ -134,25 +124,19 @@ func (c *Client) Call(callName string, arguments interface{}, timeout time.Durat
 	logger.Debug().Msg("Making RPC call.")
 
 	// create correlation channel
-	callback := make(chan interface{})
+	callback := make(chan []byte)
 	c.callers[correlationID] = callback
 	defer delete(c.callers, correlationID) // prevent a memory leak
 
-	// encode our request
-	encodedArgs, err := json.Marshal(arguments)
-	if err != nil {
-		return nil, err
-	}
-
 	// send our request
-	err = c.channel.Publish(
+	err := c.channel.Publish(
 		c.Exchange,
 		c.RequestRoutingKey+"."+callName,
 		true,
 		false,
 		amqp.Publishing{
 			CorrelationId: correlationID,
-			Body:          encodedArgs,
+			Body:          arguments,
 		},
 	)
 	if err != nil {
