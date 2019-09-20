@@ -1,6 +1,9 @@
 package servicemail
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Exchange describes the RabbitMQ exchange name.
 const Exchange = "servicemail"
@@ -26,3 +29,9 @@ const (
 
 // DefaultRPCTimeout represents the default RPC timeout.
 const DefaultRPCTimeout = 5 * time.Second
+
+// Marshal aliases. (Will make it easy to swap out serializers in future.)
+var (
+	Marshal   = json.Marshal
+	Unmarshal = json.Unmarshal
+)

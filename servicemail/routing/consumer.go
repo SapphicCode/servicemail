@@ -1,14 +1,12 @@
 package routing
 
 import (
-	"encoding/json"
-
 	"github.com/Pandentia/servicemail/servicemail"
 	"github.com/streadway/amqp"
 )
 
 func mustSerialize(v interface{}) []byte {
-	if data, err := json.Marshal(v); err != nil {
+	if data, err := servicemail.Marshal(v); err != nil {
 		panic(err)
 	} else {
 		return data
@@ -33,7 +31,7 @@ func (r *Router) Run() error {
 		logger.Debug().Msg("Delivery received from ingress")
 
 		// receive mail from ingress
-		if err := json.Unmarshal(delivery.Body, &mail); err != nil {
+		if err := servicemail.Unmarshal(delivery.Body, &mail); err != nil {
 			logger.Err(err).Bytes("data", delivery.Body).Msg("Error deserializing. Rejecting and continuing.")
 			delivery.Reject(false) // do *not* requeue, otherwise we'll just be stuck processing garbage
 			continue
@@ -52,7 +50,7 @@ func (r *Router) Run() error {
 			continue
 		}
 		envelopes := make([]servicemail.Envelope, 1) // the vast majority of the time it's going to be one or zero
-		if err := json.Unmarshal(serializedEnvelopes, &envelopes); err != nil {
+		if err := servicemail.Unmarshal(serializedEnvelopes, &envelopes); err != nil {
 			logger.Err(err).Msg("Management returned garbage. Requeing delivery.")
 			delivery.Reject(true)
 			continue
@@ -64,7 +62,7 @@ func (r *Router) Run() error {
 		delivery.Ack(false) // acknowledge delivery, as we are past the point of no return
 		for _, envelope := range envelopes {
 			// encode envelope
-			data, err := json.Marshal(envelope)
+			data, err := servicemail.Marshal(envelope)
 			if err != nil {
 				logger.Err(err).Msg("Error serializing envelope.")
 				continue
