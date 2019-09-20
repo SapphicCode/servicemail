@@ -57,6 +57,7 @@ func (r *Router) Run() error {
 			delivery.Reject(true)
 			continue
 		}
+		logger.Debug().Interface("envelopes", envelopes).Msg("Envelopes successfully deserialized from management.")
 
 		// send envelopes to platform-specific delivery nodes
 		// beyond this point we can't requeue, so we error gracefully
