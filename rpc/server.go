@@ -16,7 +16,7 @@ type Server struct {
 	// Connection configuration
 	Connection *amqp.Connection
 	Exchange   string // Exchange is expected to be a direct or topic exchange
-	RoutingKey string // routing key prefix for requests (eg. "rpc.request")
+	RoutingKey string // routing key prefix for requests (e.g. "rpc")
 
 	channel *amqp.Channel
 }
