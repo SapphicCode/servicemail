@@ -43,7 +43,8 @@ func (r *Router) Run() error {
 
 		// management routing request
 		serializedEnvelopes, err := r.rpc.Call(
-			servicemail.RoutingCall, mustSerialize(mail), servicemail.DefaultRPCTimeout)
+			servicemail.RoutingCall, mustSerialize(mail), servicemail.DefaultRPCTimeout,
+		)
 		if err != nil {
 			logger.Err(err).Msg("Error sending RPC request. Requeuing delivery.")
 			delivery.Reject(true)
