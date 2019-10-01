@@ -32,4 +32,4 @@ jobs:
       uses: actions/upload-artifact@master
       with:
         name: builds.tar.gz
-        path: ./builds
+        path: builds.tar.gz
