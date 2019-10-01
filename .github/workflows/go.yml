@@ -24,9 +24,12 @@ jobs:
 
     - name: Build router
       run: go build -v -o ./builds/router ./cmd/router
+
+    - name: Create archive tarball
+      run: tar -zcf builds.tar.gz builds/
     
     - name: Archive artifacts
       uses: actions/upload-artifact@master
       with:
-        name: router
+        name: builds.tar.gz
         path: ./builds
