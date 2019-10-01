@@ -30,14 +30,14 @@ func main() {
 		logger = logger.Level(zerolog.InfoLevel)
 	}
 
-	ingest := &mailgun.API{
+	ingress := &mailgun.API{
 		Logger: logger,
 	}
 
-	if err := ingest.New(*AMQPURI); err != nil {
+	if err := ingress.New(*AMQPURI); err != nil {
 		logger.Fatal().Err(err).Msg("Error initializing.")
 	}
-	if err := ingest.Run(*bind); err != nil {
+	if err := ingress.Run(*bind); err != nil {
 		logger.Fatal().Err(err).Msg("Error running ingress API.")
 	}
 }
