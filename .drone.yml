@@ -6,6 +6,5 @@ steps:
 - name: Build applications
   image: golang:1.13-alpine
   commands:
-  - go build
-  - go test
+  - go build ./cmd/*
 
