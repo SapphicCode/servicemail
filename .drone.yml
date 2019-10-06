@@ -3,15 +3,12 @@ type: docker
 name: Build
 
 steps:
-- name: Prepare the build environment
+- name: Prepare and build applications
   image: golang:1.13-alpine
   commands:
   - go get github.com/mitchellh/gox
   - go get -v -d ./cmd/*
   - mkdir -p dist
-
-- name: Build applications
-  commands:
   - gox -output="dist/{{.Dir}}_{{.OS}}_{{.Arch}}" -ldflags "-s -w" ./cmd/*
   environment:
     CGO_ENABLED: 0
