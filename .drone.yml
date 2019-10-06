@@ -1,9 +1,9 @@
 kind: pipeline
 type: docker
-name: Build
+name: build
 
 steps:
-- name: Prepare and build applications
+- name: prepare and build
   image: golang:1.13-alpine
   commands:
   - go get github.com/mitchellh/gox
@@ -13,7 +13,7 @@ steps:
   environment:
     CGO_ENABLED: 0
 
-- name: Release binaries
+- name: release binaries
   image: plugins/github-release
   settings:
     api_key:
@@ -21,4 +21,3 @@ steps:
     files: dist/*
   when:
     event: tag
-
