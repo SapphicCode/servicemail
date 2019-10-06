@@ -1,10 +1,27 @@
 kind: pipeline
 type: docker
-name: default
+name: Build
 
 steps:
-- name: Build applications
+- name: Prepare the build environment
   image: golang:1.13-alpine
   commands:
-  - go build ./cmd/*
+  - go get github.com/mitchellh/gox
+  - go get -v -d ./cmd/*
+  - mkdir -p dist
+
+- name: Build applications
+  commands:
+  - gox -output="dist/{{.Dir}}_{{.OS}}_{{.Arch}}" -ldflags "-s -w" ./cmd/*
+  environment:
+    CGO_ENABLED: 0
+
+- name: Release binaries
+  image: plugins/github-release
+  settings:
+    api_key:
+      from_secret: github_token
+    files: dist/*
+  when:
+    event: tag
 
