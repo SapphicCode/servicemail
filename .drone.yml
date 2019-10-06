@@ -3,6 +3,12 @@ type: docker
 name: build
 
 steps:
+- name: lint
+  image: golang:1.13-alpine
+  commands:
+  - go get golang.org/x/lint/golint
+  - golint -set_exit_status ./...
+
 - name: prepare and build
   image: golang:1.13-alpine
   commands:
