@@ -11,6 +11,11 @@ steps:
   - golint -set_exit_status ./...
   - gosec -quiet ./...
 
+- name: test
+  image: golang:1.13-alpine
+  commands:
+  - go test ./...
+
 - name: prepare and build
   image: golang:1.13-alpine
   commands:
