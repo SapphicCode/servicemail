@@ -1,14 +1,17 @@
 package rpc
 
 import (
+	"sync"
+
 	"github.com/rs/zerolog"
 	"github.com/streadway/amqp"
 )
 
 // Server describes an RPC server, providing multiple RPC handlers.
 type Server struct {
-	Handlers map[string]func([]byte) []byte
-	Logger   zerolog.Logger
+	Handlers  map[string]func([]byte) []byte
+	WaitGroup *sync.WaitGroup
+	Logger    zerolog.Logger
 
 	// Connection configuration
 	Connection *amqp.Connection
@@ -20,6 +23,10 @@ type Server struct {
 
 func (s *Server) runHandler(queueName, handlerName string) {
 	logger := s.Logger.With().Str("module", "rpc-handler").Str("handler", handlerName).Logger()
+
+	// add ourselves to the WaitGroup
+	s.WaitGroup.Add(1)
+	defer s.WaitGroup.Done()
 
 	// create channel
 	deliveryChannel, err := s.channel.Consume(
@@ -36,28 +43,45 @@ func (s *Server) runHandler(queueName, handlerName string) {
 		return
 	}
 
+	// process RPC requests
+	for delivery := range deliveryChannel {
+		go s.processRequest(handlerName, delivery)
+	}
+}
+
+func (s *Server) processRequest(handlerName string, delivery amqp.Delivery) {
+	logger := s.Logger.With().Str("module", "rpc-handler").Str("responder", handlerName).Logger()
+
+	// add ourselves to the WaitGroup considering we have one anyway
+	s.WaitGroup.Add(1)
+	defer s.WaitGroup.Done()
+
+	// add panic handler
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Error().Interface("r", r).Msg("Handler panicked, recovering.")
+		}
+	}()
+
 	// fetch handler
 	handler := s.Handlers[handlerName]
 
-	// process RPC requests
-	for delivery := range deliveryChannel {
-		// run handler
-		output := handler(delivery.Body)
+	// execute handler
+	output := handler(delivery.Body)
 
-		// return output to sender
-		err = s.channel.Publish(
-			s.Exchange,
-			delivery.ReplyTo, // use ReplyTo as routing key
-			true,             // mandatory
-			false,            // immediate
-			amqp.Publishing{
-				CorrelationId: delivery.CorrelationId,
-				Body:          output,
-			},
-		)
-		if err != nil {
-			logger.Err(err).Msg("Error publishing response.")
-		}
+	// return output to sender
+	err := s.channel.Publish(
+		s.Exchange,
+		delivery.ReplyTo, // use ReplyTo as routing key
+		true,             // mandatory
+		false,            // immediate
+		amqp.Publishing{
+			CorrelationId: delivery.CorrelationId,
+			Body:          output,
+		},
+	)
+	if err != nil {
+		logger.Err(err).Msg("Error publishing response.")
 	}
 }
 

@@ -6,17 +6,22 @@ steps:
 - name: lint
   image: golang:1.13-alpine
   commands:
-  - go get golang.org/x/lint/golint
+  - go get golang.org/x/lint/golint github.com/securego/gosec/cmd/gosec
   - test -z $(gofmt -l .)
   - golint -set_exit_status ./...
+  - gosec -quiet ./...
 
 - name: prepare and build
   image: golang:1.13-alpine
   commands:
   - go get github.com/mitchellh/gox
-  - go get -v -d ./cmd/*
+  - go get -v -d ./...
   - mkdir -p dist
-  - gox -parallel=16 -output="dist/{{.Dir}}_{{.OS}}_{{.Arch}}" -ldflags "-s -w" ./cmd/*
+  - arch=$(go tool dist list |
+    tr "\n" " " |
+    sed -r "s~((android|nacl)/\w+|darwin/arm(64)?)~~g" |
+    xargs)
+  - gox -parallel=16 -osarch="$arch" -output="dist/{{.Dir}}_{{.OS}}_{{.Arch}}" -ldflags "-s -w" ./...
   environment:
     CGO_ENABLED: 0
 
