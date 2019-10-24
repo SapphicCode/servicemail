@@ -1,6 +1,7 @@
 package management
 
 import (
+	"database/sql"
 	"os"
 	"os/signal"
 	"sync"
@@ -16,6 +17,7 @@ import (
 type Server struct {
 	Logger     zerolog.Logger
 	Connection *amqp.Connection
+	DB         *sql.DB
 
 	rpc       *rpc.Server
 	waitGroup *sync.WaitGroup
@@ -23,7 +25,7 @@ type Server struct {
 
 // Run runs the Server.
 func (server *Server) Run() (err error) {
-	logger := server.Logger.With().Str("module", "runner").Logger()
+	logger := server.getLogger("runner")
 
 	handlers := make(map[string]func([]byte) []byte)
 	handlers[servicemail.RoutingCall] = server.routingHandler
@@ -60,4 +62,8 @@ func stopSignalHandler(server *rpc.Server, signalChannel <-chan os.Signal) {
 	signal.Reset()
 
 	_ = server.Connection.Close()
+}
+
+func (server *Server) getLogger(module string) zerolog.Logger {
+	return server.Logger.With().Str("module", module).Logger()
 }
